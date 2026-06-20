@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: identity
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/identity
+    username: identity
+    password: identity
+  sql:
+    init:
+      mode: never
+
+identity:
+  event-store:
+    table: identity_event
+  localstack:
+    endpoint: http://localhost:4566
+    region: us-east-1
+    access-key: test
+    secret-key: test
+    events-queue-url: http://localhost:4566/000000000000/identity-events.fifo
+    acl-queue-url: http://localhost:4566/000000000000/identity-compliance-acl.fifo
+  retention:
+    hot-window: 180d
+    archive-bucket: identity-retention
+
+logging:
+  level:
+    br.com.locasport.identity: INFO

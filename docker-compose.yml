@@ -1,0 +1,34 @@
+services:
+  timescaledb:
+    image: timescale/timescaledb:2.17.2-pg16
+    container_name: identity-timescaledb
+    environment:
+      POSTGRES_DB: identity
+      POSTGRES_USER: identity
+      POSTGRES_PASSWORD: identity
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U identity -d identity"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  localstack:
+    image: localstack/localstack:3.8
+    container_name: identity-localstack
+    environment:
+      SERVICES: sqs,sns,s3
+      DEFAULT_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./docker/localstack/init:/etc/localstack/init/ready.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal sqs get-queue-url --queue-name identity-events.fifo && awslocal sqs get-queue-url --queue-name identity-compliance-acl.fifo && awslocal s3 ls s3://identity-retention"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
