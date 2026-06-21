@@ -1,88 +1,111 @@
 package br.com.locasport.identity.adapters.outbound
 
-import br.com.locasport.identity.domain.AccountId
-import br.com.locasport.identity.domain.AccountRegistered
-import br.com.locasport.identity.domain.AccountReinstated
-import br.com.locasport.identity.domain.AccountSuspended
 import br.com.locasport.identity.domain.AssuranceLevel
 import br.com.locasport.identity.domain.AssuranceLevelRaised
-import br.com.locasport.identity.domain.ClaimType
-import br.com.locasport.identity.domain.CredentialActivated
-import br.com.locasport.identity.domain.CredentialId
-import br.com.locasport.identity.domain.CredentialRegistered
-import br.com.locasport.identity.domain.CredentialRevoked
 import br.com.locasport.identity.domain.DomainEvent
 import br.com.locasport.identity.domain.EventId
-import br.com.locasport.identity.domain.FactorType
-import br.com.locasport.identity.domain.IdentityClaimSubmitted
-import br.com.locasport.identity.domain.LegalBasisReference
-import br.com.locasport.identity.domain.PurposeReference
+import br.com.locasport.identity.domain.LegalBasis
+import br.com.locasport.identity.domain.PartnerDeactivated
+import br.com.locasport.identity.domain.PartnerId
+import br.com.locasport.identity.domain.PartnerIdentityVerified
+import br.com.locasport.identity.domain.PartnerReactivated
+import br.com.locasport.identity.domain.PartnerRegistered
+import br.com.locasport.identity.domain.PartnerRejected
+import br.com.locasport.identity.domain.PartnerReviewSubmitted
+import br.com.locasport.identity.domain.PartnerSuspended
+import br.com.locasport.identity.domain.PartnerType
+import br.com.locasport.identity.domain.PersonActivated
+import br.com.locasport.identity.domain.PersonDeactivated
+import br.com.locasport.identity.domain.PersonId
+import br.com.locasport.identity.domain.PersonReactivated
+import br.com.locasport.identity.domain.PersonRegistered
+import br.com.locasport.identity.domain.PersonSuspended
+import br.com.locasport.identity.domain.PurposeDisclosed
 import br.com.locasport.identity.domain.Role
-import br.com.locasport.identity.domain.RoleAssigned
+import br.com.locasport.identity.domain.RoleGranted
 import br.com.locasport.identity.domain.RoleRevoked
-import br.com.locasport.identity.domain.StepUpChallengeCompleted
-import br.com.locasport.identity.domain.SubjectType
 import org.apache.avro.Schema
 import org.apache.avro.SchemaNormalization
 import org.apache.avro.message.BinaryMessageEncoder
 import org.apache.avro.specific.SpecificRecordBase
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import br.com.locasport.identity.schema.avro.AccountRegistered as AvroAccountRegistered
-import br.com.locasport.identity.schema.avro.AccountReinstated as AvroAccountReinstated
-import br.com.locasport.identity.schema.avro.AccountSuspended as AvroAccountSuspended
 import br.com.locasport.identity.schema.avro.AssuranceLevel as AvroAssuranceLevel
 import br.com.locasport.identity.schema.avro.AssuranceLevelRaised as AvroAssuranceLevelRaised
-import br.com.locasport.identity.schema.avro.ClaimType as AvroClaimType
-import br.com.locasport.identity.schema.avro.CredentialActivated as AvroCredentialActivated
-import br.com.locasport.identity.schema.avro.CredentialRegistered as AvroCredentialRegistered
-import br.com.locasport.identity.schema.avro.CredentialRevoked as AvroCredentialRevoked
-import br.com.locasport.identity.schema.avro.FactorType as AvroFactorType
-import br.com.locasport.identity.schema.avro.IdentityClaimSubmitted as AvroIdentityClaimSubmitted
+import br.com.locasport.identity.schema.avro.LegalBasis as AvroLegalBasis
+import br.com.locasport.identity.schema.avro.PartnerDeactivated as AvroPartnerDeactivated
+import br.com.locasport.identity.schema.avro.PartnerIdentityVerified as AvroPartnerIdentityVerified
+import br.com.locasport.identity.schema.avro.PartnerReactivated as AvroPartnerReactivated
+import br.com.locasport.identity.schema.avro.PartnerRegistered as AvroPartnerRegistered
+import br.com.locasport.identity.schema.avro.PartnerRejected as AvroPartnerRejected
+import br.com.locasport.identity.schema.avro.PartnerReviewSubmitted as AvroPartnerReviewSubmitted
+import br.com.locasport.identity.schema.avro.PartnerSuspended as AvroPartnerSuspended
+import br.com.locasport.identity.schema.avro.PartnerType as AvroPartnerType
+import br.com.locasport.identity.schema.avro.PersonActivated as AvroPersonActivated
+import br.com.locasport.identity.schema.avro.PersonDeactivated as AvroPersonDeactivated
+import br.com.locasport.identity.schema.avro.PersonReactivated as AvroPersonReactivated
+import br.com.locasport.identity.schema.avro.PersonRegistered as AvroPersonRegistered
+import br.com.locasport.identity.schema.avro.PersonSuspended as AvroPersonSuspended
+import br.com.locasport.identity.schema.avro.PurposeDisclosed as AvroPurposeDisclosed
 import br.com.locasport.identity.schema.avro.Role as AvroRole
-import br.com.locasport.identity.schema.avro.RoleAssigned as AvroRoleAssigned
+import br.com.locasport.identity.schema.avro.RoleGranted as AvroRoleGranted
 import br.com.locasport.identity.schema.avro.RoleRevoked as AvroRoleRevoked
-import br.com.locasport.identity.schema.avro.StepUpChallengeCompleted as AvroStepUpChallengeCompleted
-import br.com.locasport.identity.schema.avro.SubjectType as AvroSubjectType
 
 class AvroEventCodec {
     private val decoders: Map<Long, (ByteArray) -> DomainEvent> =
         mapOf(
-            fingerprint(AvroAccountRegistered.getClassSchema()) to
-                { bytes -> fromAvro(AvroAccountRegistered.getDecoder().decode(bytes)) },
-            fingerprint(AvroIdentityClaimSubmitted.getClassSchema()) to
-                { bytes -> fromAvro(AvroIdentityClaimSubmitted.getDecoder().decode(bytes)) },
+            fingerprint(AvroPersonRegistered.getClassSchema()) to
+                { bytes -> fromAvro(AvroPersonRegistered.getDecoder().decode(bytes)) },
+            fingerprint(AvroPersonActivated.getClassSchema()) to
+                { bytes -> fromAvro(AvroPersonActivated.getDecoder().decode(bytes)) },
+            fingerprint(AvroPersonSuspended.getClassSchema()) to
+                { bytes -> fromAvro(AvroPersonSuspended.getDecoder().decode(bytes)) },
+            fingerprint(AvroPersonReactivated.getClassSchema()) to
+                { bytes -> fromAvro(AvroPersonReactivated.getDecoder().decode(bytes)) },
+            fingerprint(AvroPersonDeactivated.getClassSchema()) to
+                { bytes -> fromAvro(AvroPersonDeactivated.getDecoder().decode(bytes)) },
+            fingerprint(AvroPartnerRegistered.getClassSchema()) to
+                { bytes -> fromAvro(AvroPartnerRegistered.getDecoder().decode(bytes)) },
+            fingerprint(AvroPartnerReviewSubmitted.getClassSchema()) to
+                { bytes -> fromAvro(AvroPartnerReviewSubmitted.getDecoder().decode(bytes)) },
+            fingerprint(AvroPartnerIdentityVerified.getClassSchema()) to
+                { bytes -> fromAvro(AvroPartnerIdentityVerified.getDecoder().decode(bytes)) },
+            fingerprint(AvroPartnerRejected.getClassSchema()) to
+                { bytes -> fromAvro(AvroPartnerRejected.getDecoder().decode(bytes)) },
+            fingerprint(AvroPartnerSuspended.getClassSchema()) to
+                { bytes -> fromAvro(AvroPartnerSuspended.getDecoder().decode(bytes)) },
+            fingerprint(AvroPartnerReactivated.getClassSchema()) to
+                { bytes -> fromAvro(AvroPartnerReactivated.getDecoder().decode(bytes)) },
+            fingerprint(AvroPartnerDeactivated.getClassSchema()) to
+                { bytes -> fromAvro(AvroPartnerDeactivated.getDecoder().decode(bytes)) },
+            fingerprint(AvroPurposeDisclosed.getClassSchema()) to
+                { bytes -> fromAvro(AvroPurposeDisclosed.getDecoder().decode(bytes)) },
             fingerprint(AvroAssuranceLevelRaised.getClassSchema()) to
                 { bytes -> fromAvro(AvroAssuranceLevelRaised.getDecoder().decode(bytes)) },
-            fingerprint(AvroRoleAssigned.getClassSchema()) to { bytes -> fromAvro(AvroRoleAssigned.getDecoder().decode(bytes)) },
-            fingerprint(AvroRoleRevoked.getClassSchema()) to { bytes -> fromAvro(AvroRoleRevoked.getDecoder().decode(bytes)) },
-            fingerprint(AvroAccountSuspended.getClassSchema()) to
-                { bytes -> fromAvro(AvroAccountSuspended.getDecoder().decode(bytes)) },
-            fingerprint(AvroAccountReinstated.getClassSchema()) to
-                { bytes -> fromAvro(AvroAccountReinstated.getDecoder().decode(bytes)) },
-            fingerprint(AvroCredentialRegistered.getClassSchema()) to
-                { bytes -> fromAvro(AvroCredentialRegistered.getDecoder().decode(bytes)) },
-            fingerprint(AvroCredentialActivated.getClassSchema()) to
-                { bytes -> fromAvro(AvroCredentialActivated.getDecoder().decode(bytes)) },
-            fingerprint(AvroStepUpChallengeCompleted.getClassSchema()) to
-                { bytes -> fromAvro(AvroStepUpChallengeCompleted.getDecoder().decode(bytes)) },
-            fingerprint(AvroCredentialRevoked.getClassSchema()) to
-                { bytes -> fromAvro(AvroCredentialRevoked.getDecoder().decode(bytes)) },
+            fingerprint(AvroRoleGranted.getClassSchema()) to
+                { bytes -> fromAvro(AvroRoleGranted.getDecoder().decode(bytes)) },
+            fingerprint(AvroRoleRevoked.getClassSchema()) to
+                { bytes -> fromAvro(AvroRoleRevoked.getDecoder().decode(bytes)) },
         )
 
     fun encode(event: DomainEvent): ByteArray =
         when (event) {
-            is AccountRegistered -> serialize(AvroAccountRegistered.getEncoder(), toAvro(event))
-            is IdentityClaimSubmitted -> serialize(AvroIdentityClaimSubmitted.getEncoder(), toAvro(event))
+            is PersonRegistered -> serialize(AvroPersonRegistered.getEncoder(), toAvro(event))
+            is PersonActivated -> serialize(AvroPersonActivated.getEncoder(), toAvro(event))
+            is PersonSuspended -> serialize(AvroPersonSuspended.getEncoder(), toAvro(event))
+            is PersonReactivated -> serialize(AvroPersonReactivated.getEncoder(), toAvro(event))
+            is PersonDeactivated -> serialize(AvroPersonDeactivated.getEncoder(), toAvro(event))
+            is PartnerRegistered -> serialize(AvroPartnerRegistered.getEncoder(), toAvro(event))
+            is PartnerReviewSubmitted -> serialize(AvroPartnerReviewSubmitted.getEncoder(), toAvro(event))
+            is PartnerIdentityVerified -> serialize(AvroPartnerIdentityVerified.getEncoder(), toAvro(event))
+            is PartnerRejected -> serialize(AvroPartnerRejected.getEncoder(), toAvro(event))
+            is PartnerSuspended -> serialize(AvroPartnerSuspended.getEncoder(), toAvro(event))
+            is PartnerReactivated -> serialize(AvroPartnerReactivated.getEncoder(), toAvro(event))
+            is PartnerDeactivated -> serialize(AvroPartnerDeactivated.getEncoder(), toAvro(event))
+            is PurposeDisclosed -> serialize(AvroPurposeDisclosed.getEncoder(), toAvro(event))
             is AssuranceLevelRaised -> serialize(AvroAssuranceLevelRaised.getEncoder(), toAvro(event))
-            is RoleAssigned -> serialize(AvroRoleAssigned.getEncoder(), toAvro(event))
+            is RoleGranted -> serialize(AvroRoleGranted.getEncoder(), toAvro(event))
             is RoleRevoked -> serialize(AvroRoleRevoked.getEncoder(), toAvro(event))
-            is AccountSuspended -> serialize(AvroAccountSuspended.getEncoder(), toAvro(event))
-            is AccountReinstated -> serialize(AvroAccountReinstated.getEncoder(), toAvro(event))
-            is CredentialRegistered -> serialize(AvroCredentialRegistered.getEncoder(), toAvro(event))
-            is CredentialActivated -> serialize(AvroCredentialActivated.getEncoder(), toAvro(event))
-            is StepUpChallengeCompleted -> serialize(AvroStepUpChallengeCompleted.getEncoder(), toAvro(event))
-            is CredentialRevoked -> serialize(AvroCredentialRevoked.getEncoder(), toAvro(event))
             else -> throw IllegalArgumentException("unsupported event ${event.type}")
         }
 
@@ -92,38 +115,123 @@ class AvroEventCodec {
         return decoder(payload)
     }
 
-    private fun toAvro(event: AccountRegistered): AvroAccountRegistered =
-        AvroAccountRegistered(
-            event.accountId.value,
-            AvroSubjectType.valueOf(event.subjectType.name),
-            event.purposeReference.value,
+    private fun toAvro(event: PersonRegistered): AvroPersonRegistered =
+        AvroPersonRegistered(
+            event.personId.value,
+            AvroLegalBasis.valueOf(event.legalBasis.name),
             event.eventId.value,
             event.occurredAt,
         )
 
-    private fun toAvro(event: IdentityClaimSubmitted): AvroIdentityClaimSubmitted =
-        AvroIdentityClaimSubmitted(
-            event.accountId.value,
-            AvroClaimType.valueOf(event.claimType.name),
-            event.purposeReference.value,
-            event.legalBasisReference.value,
+    private fun toAvro(event: PersonActivated): AvroPersonActivated =
+        AvroPersonActivated(
+            event.personId.value,
+            event.eventId.value,
+            event.occurredAt,
+        )
+
+    private fun toAvro(event: PersonSuspended): AvroPersonSuspended =
+        AvroPersonSuspended(
+            event.personId.value,
+            event.reason,
+            event.eventId.value,
+            event.occurredAt,
+        )
+
+    private fun toAvro(event: PersonReactivated): AvroPersonReactivated =
+        AvroPersonReactivated(
+            event.personId.value,
+            event.eventId.value,
+            event.occurredAt,
+        )
+
+    private fun toAvro(event: PersonDeactivated): AvroPersonDeactivated =
+        AvroPersonDeactivated(
+            event.personId.value,
+            event.eventId.value,
+            event.occurredAt,
+        )
+
+    private fun toAvro(event: PartnerRegistered): AvroPartnerRegistered =
+        AvroPartnerRegistered(
+            event.partnerId.value,
+            AvroPartnerType.valueOf(event.partnerType.name),
+            event.legalName,
+            event.taxId,
+            AvroLegalBasis.valueOf(event.legalBasis.name),
+            event.eventId.value,
+            event.occurredAt,
+        )
+
+    private fun toAvro(event: PartnerReviewSubmitted): AvroPartnerReviewSubmitted =
+        AvroPartnerReviewSubmitted(
+            event.partnerId.value,
+            event.eventId.value,
+            event.occurredAt,
+        )
+
+    private fun toAvro(event: PartnerIdentityVerified): AvroPartnerIdentityVerified =
+        AvroPartnerIdentityVerified(
+            event.partnerId.value,
+            event.legalName,
+            event.taxId,
+            AvroPartnerType.valueOf(event.partnerType.name),
+            AvroAssuranceLevel.valueOf(event.assuranceLevel.name),
+            event.verifiedAt,
+            event.eventId.value,
+            event.occurredAt,
+        )
+
+    private fun toAvro(event: PartnerRejected): AvroPartnerRejected =
+        AvroPartnerRejected(
+            event.partnerId.value,
+            event.reason,
+            event.eventId.value,
+            event.occurredAt,
+        )
+
+    private fun toAvro(event: PartnerSuspended): AvroPartnerSuspended =
+        AvroPartnerSuspended(
+            event.partnerId.value,
+            event.reason,
+            event.eventId.value,
+            event.occurredAt,
+        )
+
+    private fun toAvro(event: PartnerReactivated): AvroPartnerReactivated =
+        AvroPartnerReactivated(
+            event.partnerId.value,
+            event.eventId.value,
+            event.occurredAt,
+        )
+
+    private fun toAvro(event: PartnerDeactivated): AvroPartnerDeactivated =
+        AvroPartnerDeactivated(
+            event.partnerId.value,
+            event.eventId.value,
+            event.occurredAt,
+        )
+
+    private fun toAvro(event: PurposeDisclosed): AvroPurposeDisclosed =
+        AvroPurposeDisclosed(
+            event.subjectId,
+            event.purpose,
             event.eventId.value,
             event.occurredAt,
         )
 
     private fun toAvro(event: AssuranceLevelRaised): AvroAssuranceLevelRaised =
         AvroAssuranceLevelRaised(
-            event.accountId.value,
+            event.subjectId,
             AvroAssuranceLevel.valueOf(event.from.name),
             AvroAssuranceLevel.valueOf(event.to.name),
-            event.purposeReference.value,
             event.eventId.value,
             event.occurredAt,
         )
 
-    private fun toAvro(event: RoleAssigned): AvroRoleAssigned =
-        AvroRoleAssigned(
-            event.accountId.value,
+    private fun toAvro(event: RoleGranted): AvroRoleGranted =
+        AvroRoleGranted(
+            event.subjectId,
             AvroRole.valueOf(event.role.name),
             event.eventId.value,
             event.occurredAt,
@@ -131,93 +239,129 @@ class AvroEventCodec {
 
     private fun toAvro(event: RoleRevoked): AvroRoleRevoked =
         AvroRoleRevoked(
-            event.accountId.value,
+            event.subjectId,
             AvroRole.valueOf(event.role.name),
             event.eventId.value,
             event.occurredAt,
         )
 
-    private fun toAvro(event: AccountSuspended): AvroAccountSuspended =
-        AvroAccountSuspended(
-            event.accountId.value,
-            event.reason,
-            event.eventId.value,
-            event.occurredAt,
-        )
-
-    private fun toAvro(event: AccountReinstated): AvroAccountReinstated =
-        AvroAccountReinstated(
-            event.accountId.value,
-            event.eventId.value,
-            event.occurredAt,
-        )
-
-    private fun toAvro(event: CredentialRegistered): AvroCredentialRegistered =
-        AvroCredentialRegistered(
-            event.credentialId.value,
-            event.accountId.value,
-            AvroFactorType.valueOf(event.factorType.name),
-            event.eventId.value,
-            event.occurredAt,
-        )
-
-    private fun toAvro(event: CredentialActivated): AvroCredentialActivated =
-        AvroCredentialActivated(
-            event.credentialId.value,
-            event.eventId.value,
-            event.occurredAt,
-        )
-
-    private fun toAvro(event: StepUpChallengeCompleted): AvroStepUpChallengeCompleted =
-        AvroStepUpChallengeCompleted(
-            event.credentialId.value,
-            event.accountId.value,
-            AvroAssuranceLevel.valueOf(event.achievedAssurance.name),
-            event.purposeReference.value,
-            event.eventId.value,
-            event.occurredAt,
-        )
-
-    private fun toAvro(event: CredentialRevoked): AvroCredentialRevoked =
-        AvroCredentialRevoked(
-            event.credentialId.value,
-            event.reason,
-            event.eventId.value,
-            event.occurredAt,
-        )
-
-    private fun fromAvro(record: AvroAccountRegistered): AccountRegistered =
-        AccountRegistered(
-            AccountId(record.accountId),
-            SubjectType.valueOf(record.subjectType.name),
-            PurposeReference(record.purposeReference),
+    private fun fromAvro(record: AvroPersonRegistered): PersonRegistered =
+        PersonRegistered(
+            PersonId(record.personId),
+            LegalBasis.valueOf(record.legalBasis.name),
             EventId(record.eventId),
             record.occurredAt,
         )
 
-    private fun fromAvro(record: AvroIdentityClaimSubmitted): IdentityClaimSubmitted =
-        IdentityClaimSubmitted(
-            AccountId(record.accountId),
-            ClaimType.valueOf(record.claimType.name),
-            PurposeReference(record.purposeReference),
-            LegalBasisReference(record.legalBasisReference),
+    private fun fromAvro(record: AvroPersonActivated): PersonActivated =
+        PersonActivated(
+            PersonId(record.personId),
+            EventId(record.eventId),
+            record.occurredAt,
+        )
+
+    private fun fromAvro(record: AvroPersonSuspended): PersonSuspended =
+        PersonSuspended(
+            PersonId(record.personId),
+            record.reason,
+            EventId(record.eventId),
+            record.occurredAt,
+        )
+
+    private fun fromAvro(record: AvroPersonReactivated): PersonReactivated =
+        PersonReactivated(
+            PersonId(record.personId),
+            EventId(record.eventId),
+            record.occurredAt,
+        )
+
+    private fun fromAvro(record: AvroPersonDeactivated): PersonDeactivated =
+        PersonDeactivated(
+            PersonId(record.personId),
+            EventId(record.eventId),
+            record.occurredAt,
+        )
+
+    private fun fromAvro(record: AvroPartnerRegistered): PartnerRegistered =
+        PartnerRegistered(
+            PartnerId(record.partnerId),
+            PartnerType.valueOf(record.partnerType.name),
+            record.legalName,
+            record.taxId,
+            LegalBasis.valueOf(record.legalBasis.name),
+            EventId(record.eventId),
+            record.occurredAt,
+        )
+
+    private fun fromAvro(record: AvroPartnerReviewSubmitted): PartnerReviewSubmitted =
+        PartnerReviewSubmitted(
+            PartnerId(record.partnerId),
+            EventId(record.eventId),
+            record.occurredAt,
+        )
+
+    private fun fromAvro(record: AvroPartnerIdentityVerified): PartnerIdentityVerified =
+        PartnerIdentityVerified(
+            PartnerId(record.partnerId),
+            record.legalName,
+            record.taxId,
+            PartnerType.valueOf(record.partnerType.name),
+            AssuranceLevel.valueOf(record.assuranceLevel.name),
+            record.verifiedAt,
+            EventId(record.eventId),
+            record.occurredAt,
+        )
+
+    private fun fromAvro(record: AvroPartnerRejected): PartnerRejected =
+        PartnerRejected(
+            PartnerId(record.partnerId),
+            record.reason,
+            EventId(record.eventId),
+            record.occurredAt,
+        )
+
+    private fun fromAvro(record: AvroPartnerSuspended): PartnerSuspended =
+        PartnerSuspended(
+            PartnerId(record.partnerId),
+            record.reason,
+            EventId(record.eventId),
+            record.occurredAt,
+        )
+
+    private fun fromAvro(record: AvroPartnerReactivated): PartnerReactivated =
+        PartnerReactivated(
+            PartnerId(record.partnerId),
+            EventId(record.eventId),
+            record.occurredAt,
+        )
+
+    private fun fromAvro(record: AvroPartnerDeactivated): PartnerDeactivated =
+        PartnerDeactivated(
+            PartnerId(record.partnerId),
+            EventId(record.eventId),
+            record.occurredAt,
+        )
+
+    private fun fromAvro(record: AvroPurposeDisclosed): PurposeDisclosed =
+        PurposeDisclosed(
+            record.subjectId,
+            record.purpose,
             EventId(record.eventId),
             record.occurredAt,
         )
 
     private fun fromAvro(record: AvroAssuranceLevelRaised): AssuranceLevelRaised =
         AssuranceLevelRaised(
-            AccountId(record.accountId),
+            record.subjectId,
             AssuranceLevel.valueOf(record.from.name),
             AssuranceLevel.valueOf(record.to.name),
-            PurposeReference(record.purposeReference),
             EventId(record.eventId),
             record.occurredAt,
         )
 
-    private fun fromAvro(record: AvroRoleAssigned): RoleAssigned =
-        RoleAssigned(
-            AccountId(record.accountId),
+    private fun fromAvro(record: AvroRoleGranted): RoleGranted =
+        RoleGranted(
+            record.subjectId,
             Role.valueOf(record.role.name),
             EventId(record.eventId),
             record.occurredAt,
@@ -225,57 +369,8 @@ class AvroEventCodec {
 
     private fun fromAvro(record: AvroRoleRevoked): RoleRevoked =
         RoleRevoked(
-            AccountId(record.accountId),
+            record.subjectId,
             Role.valueOf(record.role.name),
-            EventId(record.eventId),
-            record.occurredAt,
-        )
-
-    private fun fromAvro(record: AvroAccountSuspended): AccountSuspended =
-        AccountSuspended(
-            AccountId(record.accountId),
-            record.reason,
-            EventId(record.eventId),
-            record.occurredAt,
-        )
-
-    private fun fromAvro(record: AvroAccountReinstated): AccountReinstated =
-        AccountReinstated(
-            AccountId(record.accountId),
-            EventId(record.eventId),
-            record.occurredAt,
-        )
-
-    private fun fromAvro(record: AvroCredentialRegistered): CredentialRegistered =
-        CredentialRegistered(
-            CredentialId(record.credentialId),
-            AccountId(record.accountId),
-            FactorType.valueOf(record.factorType.name),
-            EventId(record.eventId),
-            record.occurredAt,
-        )
-
-    private fun fromAvro(record: AvroCredentialActivated): CredentialActivated =
-        CredentialActivated(
-            CredentialId(record.credentialId),
-            EventId(record.eventId),
-            record.occurredAt,
-        )
-
-    private fun fromAvro(record: AvroStepUpChallengeCompleted): StepUpChallengeCompleted =
-        StepUpChallengeCompleted(
-            CredentialId(record.credentialId),
-            AccountId(record.accountId),
-            AssuranceLevel.valueOf(record.achievedAssurance.name),
-            PurposeReference(record.purposeReference),
-            EventId(record.eventId),
-            record.occurredAt,
-        )
-
-    private fun fromAvro(record: AvroCredentialRevoked): CredentialRevoked =
-        CredentialRevoked(
-            CredentialId(record.credentialId),
-            record.reason,
             EventId(record.eventId),
             record.occurredAt,
         )

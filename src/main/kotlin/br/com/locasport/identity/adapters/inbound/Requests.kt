@@ -1,123 +1,160 @@
 package br.com.locasport.identity.adapters.inbound
 
-import br.com.locasport.identity.domain.AccountId
-import br.com.locasport.identity.domain.ActivateCredential
-import br.com.locasport.identity.domain.AssignRole
+import br.com.locasport.identity.domain.ActivateAccount
 import br.com.locasport.identity.domain.AssuranceLevel
-import br.com.locasport.identity.domain.ClaimType
 import br.com.locasport.identity.domain.CommandId
-import br.com.locasport.identity.domain.CompleteStepUpChallenge
-import br.com.locasport.identity.domain.CredentialId
-import br.com.locasport.identity.domain.FactorType
-import br.com.locasport.identity.domain.LegalBasisReference
-import br.com.locasport.identity.domain.PurposeReference
+import br.com.locasport.identity.domain.DeactivatePartner
+import br.com.locasport.identity.domain.DeactivatePerson
+import br.com.locasport.identity.domain.DisclosePartnerPurpose
+import br.com.locasport.identity.domain.DisclosePurpose
+import br.com.locasport.identity.domain.GrantPartnerRole
+import br.com.locasport.identity.domain.GrantRole
+import br.com.locasport.identity.domain.LegalBasis
+import br.com.locasport.identity.domain.PartnerId
+import br.com.locasport.identity.domain.PartnerType
+import br.com.locasport.identity.domain.PersonId
 import br.com.locasport.identity.domain.RaiseAssuranceLevel
-import br.com.locasport.identity.domain.RegisterAccount
-import br.com.locasport.identity.domain.RegisterCredential
-import br.com.locasport.identity.domain.ReinstateAccount
-import br.com.locasport.identity.domain.RevokeCredential
+import br.com.locasport.identity.domain.ReactivatePartner
+import br.com.locasport.identity.domain.ReactivatePerson
+import br.com.locasport.identity.domain.RegisterPartner
+import br.com.locasport.identity.domain.RegisterPerson
+import br.com.locasport.identity.domain.RejectPartner
+import br.com.locasport.identity.domain.RevokePartnerRole
 import br.com.locasport.identity.domain.RevokeRole
 import br.com.locasport.identity.domain.Role
-import br.com.locasport.identity.domain.SubjectType
-import br.com.locasport.identity.domain.SubmitIdentityClaim
-import br.com.locasport.identity.domain.SuspendAccount
+import br.com.locasport.identity.domain.SubmitPartnerForReview
+import br.com.locasport.identity.domain.SuspendPartner
+import br.com.locasport.identity.domain.SuspendPerson
+import br.com.locasport.identity.domain.VerifyPartnerIdentity
+import java.time.Instant
 import java.util.UUID
 
-data class RegisterAccountRequest(
-    val accountId: UUID,
-    val subjectType: SubjectType,
-    val purposeReference: String,
+data class RegisterPersonRequest(
+    val personId: UUID,
+    val legalBasis: LegalBasis,
 ) {
-    fun toCommand(commandId: CommandId): RegisterAccount =
-        RegisterAccount(commandId, AccountId(accountId), subjectType, PurposeReference(purposeReference))
+    fun toCommand(commandId: CommandId): RegisterPerson = RegisterPerson(commandId, PersonId(personId), legalBasis)
 }
 
-data class SubmitIdentityClaimRequest(
-    val accountId: UUID,
-    val claimType: ClaimType,
-    val purposeReference: String,
-    val legalBasisReference: String,
+data class ActivateAccountRequest(
+    val personId: UUID,
 ) {
-    fun toCommand(commandId: CommandId): SubmitIdentityClaim =
-        SubmitIdentityClaim(
-            commandId,
-            AccountId(accountId),
-            claimType,
-            PurposeReference(purposeReference),
-            LegalBasisReference(legalBasisReference),
-        )
+    fun toCommand(commandId: CommandId): ActivateAccount = ActivateAccount(commandId, PersonId(personId))
+}
+
+data class SuspendPersonRequest(
+    val personId: UUID,
+    val reason: String,
+) {
+    fun toCommand(commandId: CommandId): SuspendPerson = SuspendPerson(commandId, PersonId(personId), reason)
+}
+
+data class ReactivatePersonRequest(
+    val personId: UUID,
+) {
+    fun toCommand(commandId: CommandId): ReactivatePerson = ReactivatePerson(commandId, PersonId(personId))
+}
+
+data class DeactivatePersonRequest(
+    val personId: UUID,
+) {
+    fun toCommand(commandId: CommandId): DeactivatePerson = DeactivatePerson(commandId, PersonId(personId))
+}
+
+data class DisclosePurposeRequest(
+    val personId: UUID,
+    val purpose: String,
+) {
+    fun toCommand(commandId: CommandId): DisclosePurpose = DisclosePurpose(commandId, PersonId(personId), purpose)
 }
 
 data class RaiseAssuranceLevelRequest(
-    val accountId: UUID,
+    val subjectId: UUID,
     val target: AssuranceLevel,
-    val purposeReference: String,
 ) {
-    fun toCommand(commandId: CommandId): RaiseAssuranceLevel =
-        RaiseAssuranceLevel(commandId, AccountId(accountId), target, PurposeReference(purposeReference))
+    fun toCommand(commandId: CommandId): RaiseAssuranceLevel = RaiseAssuranceLevel(commandId, subjectId, target)
 }
 
-data class AssignRoleRequest(
-    val accountId: UUID,
+data class GrantRoleRequest(
+    val personId: UUID,
     val role: Role,
 ) {
-    fun toCommand(commandId: CommandId): AssignRole = AssignRole(commandId, AccountId(accountId), role)
+    fun toCommand(commandId: CommandId): GrantRole = GrantRole(commandId, PersonId(personId), role)
 }
 
 data class RevokeRoleRequest(
-    val accountId: UUID,
+    val personId: UUID,
     val role: Role,
 ) {
-    fun toCommand(commandId: CommandId): RevokeRole = RevokeRole(commandId, AccountId(accountId), role)
+    fun toCommand(commandId: CommandId): RevokeRole = RevokeRole(commandId, PersonId(personId), role)
 }
 
-data class SuspendAccountRequest(
-    val accountId: UUID,
+data class RegisterPartnerRequest(
+    val partnerId: UUID,
+    val partnerType: PartnerType,
+    val legalName: String,
+    val taxId: String,
+    val legalBasis: LegalBasis,
+) {
+    fun toCommand(commandId: CommandId): RegisterPartner =
+        RegisterPartner(commandId, PartnerId(partnerId), partnerType, legalName, taxId, legalBasis)
+}
+
+data class SubmitPartnerForReviewRequest(
+    val partnerId: UUID,
+) {
+    fun toCommand(commandId: CommandId): SubmitPartnerForReview = SubmitPartnerForReview(commandId, PartnerId(partnerId))
+}
+
+data class VerifyPartnerIdentityRequest(
+    val partnerId: UUID,
+) {
+    fun toCommand(commandId: CommandId): VerifyPartnerIdentity = VerifyPartnerIdentity(commandId, PartnerId(partnerId), Instant.now())
+}
+
+data class RejectPartnerRequest(
+    val partnerId: UUID,
     val reason: String,
 ) {
-    fun toCommand(commandId: CommandId): SuspendAccount = SuspendAccount(commandId, AccountId(accountId), reason)
+    fun toCommand(commandId: CommandId): RejectPartner = RejectPartner(commandId, PartnerId(partnerId), reason)
 }
 
-data class ReinstateAccountRequest(
-    val accountId: UUID,
-) {
-    fun toCommand(commandId: CommandId): ReinstateAccount = ReinstateAccount(commandId, AccountId(accountId))
-}
-
-data class RegisterCredentialRequest(
-    val credentialId: UUID,
-    val accountId: UUID,
-    val factorType: FactorType,
-) {
-    fun toCommand(commandId: CommandId): RegisterCredential =
-        RegisterCredential(commandId, CredentialId(credentialId), AccountId(accountId), factorType)
-}
-
-data class ActivateCredentialRequest(
-    val credentialId: UUID,
-) {
-    fun toCommand(commandId: CommandId): ActivateCredential = ActivateCredential(commandId, CredentialId(credentialId))
-}
-
-data class CompleteStepUpChallengeRequest(
-    val credentialId: UUID,
-    val accountId: UUID,
-    val achievedAssurance: AssuranceLevel,
-    val purposeReference: String,
-) {
-    fun toCommand(commandId: CommandId): CompleteStepUpChallenge =
-        CompleteStepUpChallenge(
-            commandId,
-            CredentialId(credentialId),
-            AccountId(accountId),
-            achievedAssurance,
-            PurposeReference(purposeReference),
-        )
-}
-
-data class RevokeCredentialRequest(
-    val credentialId: UUID,
+data class SuspendPartnerRequest(
+    val partnerId: UUID,
     val reason: String,
 ) {
-    fun toCommand(commandId: CommandId): RevokeCredential = RevokeCredential(commandId, CredentialId(credentialId), reason)
+    fun toCommand(commandId: CommandId): SuspendPartner = SuspendPartner(commandId, PartnerId(partnerId), reason)
+}
+
+data class ReactivatePartnerRequest(
+    val partnerId: UUID,
+) {
+    fun toCommand(commandId: CommandId): ReactivatePartner = ReactivatePartner(commandId, PartnerId(partnerId))
+}
+
+data class DeactivatePartnerRequest(
+    val partnerId: UUID,
+) {
+    fun toCommand(commandId: CommandId): DeactivatePartner = DeactivatePartner(commandId, PartnerId(partnerId))
+}
+
+data class DisclosePartnerPurposeRequest(
+    val partnerId: UUID,
+    val purpose: String,
+) {
+    fun toCommand(commandId: CommandId): DisclosePartnerPurpose = DisclosePartnerPurpose(commandId, PartnerId(partnerId), purpose)
+}
+
+data class GrantPartnerRoleRequest(
+    val partnerId: UUID,
+    val role: Role,
+) {
+    fun toCommand(commandId: CommandId): GrantPartnerRole = GrantPartnerRole(commandId, PartnerId(partnerId), role)
+}
+
+data class RevokePartnerRoleRequest(
+    val partnerId: UUID,
+    val role: Role,
+) {
+    fun toCommand(commandId: CommandId): RevokePartnerRole = RevokePartnerRole(commandId, PartnerId(partnerId), role)
 }

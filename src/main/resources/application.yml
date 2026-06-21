@@ -22,6 +22,12 @@ identity:
   retention:
     hot-window: 180d
     archive-bucket: identity-retention
+  documents:
+    bucket: identity-documents
+    min-retention-days: 30
+    max-retention-days: 90
+  assurance:
+    verifiable-risk-trigger-required: true
 
 logging:
   level:

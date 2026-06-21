@@ -36,7 +36,7 @@ dependencies {
     implementation("org.postgresql:r2dbc-postgresql:1.0.7.RELEASE")
     implementation("org.postgresql:postgresql")
 
-    implementation("br.com.locasport:identity-schema-avro:0.1.0")
+    implementation("br.com.locasport:identity-schema-avro:0.2.0")
     implementation("org.apache.avro:avro:1.12.0")
 
     implementation(platform("software.amazon.awssdk:bom:${property("awsSdkVersion")}"))

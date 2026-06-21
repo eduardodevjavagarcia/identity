@@ -5,23 +5,32 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.coRouter
 
 fun identityRoutes(
-    account: AccountInboundAdapter,
-    credential: CredentialInboundAdapter,
+    person: PersonInboundAdapter,
+    partner: PartnerInboundAdapter,
 ): RouterFunction<ServerResponse> =
     coRouter {
-        "/accounts".nest {
-            POST("", account::register)
-            POST("/claims", account::submitClaim)
-            POST("/assurance", account::raiseAssurance)
-            POST("/roles", account::assignRole)
-            POST("/roles/revoke", account::revokeRole)
-            POST("/suspend", account::suspendAccount)
-            POST("/reinstate", account::reinstate)
+        "/persons".nest {
+            POST("", person::register)
+            POST("/purpose", person::disclosePurpose)
+            POST("/assurance", person::raiseAssurance)
+            POST("/activate", person::activateAccount)
+            POST("/roles", person::grantRole)
+            POST("/roles/revoke", person::revokeRole)
+            POST("/suspend", person::suspend)
+            POST("/reactivate", person::reactivate)
+            POST("/deactivate", person::deactivate)
         }
-        "/credentials".nest {
-            POST("", credential::register)
-            POST("/activate", credential::activate)
-            POST("/step-up", credential::completeStepUp)
-            POST("/revoke", credential::revoke)
+        "/partners".nest {
+            POST("", partner::register)
+            POST("/submit-review", partner::submitForReview)
+            POST("/verify-identity", partner::verifyIdentity)
+            POST("/reject", partner::reject)
+            POST("/assurance", partner::raiseAssurance)
+            POST("/purpose", partner::disclosePurpose)
+            POST("/roles", partner::grantRole)
+            POST("/roles/revoke", partner::revokeRole)
+            POST("/suspend", partner::suspend)
+            POST("/reactivate", partner::reactivate)
+            POST("/deactivate", partner::deactivate)
         }
     }

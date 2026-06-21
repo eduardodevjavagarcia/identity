@@ -1,29 +1,41 @@
 package br.com.locasport.identity.adapters.config
 
-import br.com.locasport.identity.adapters.inbound.AccountInboundAdapter
 import br.com.locasport.identity.adapters.inbound.ComplianceAclConsumer
-import br.com.locasport.identity.adapters.inbound.CredentialInboundAdapter
+import br.com.locasport.identity.adapters.inbound.PartnerInboundAdapter
+import br.com.locasport.identity.adapters.inbound.PersonInboundAdapter
 import br.com.locasport.identity.adapters.inbound.identityRoutes
-import br.com.locasport.identity.adapters.outbound.AccountProjection
 import br.com.locasport.identity.adapters.outbound.AvroEventCodec
 import br.com.locasport.identity.adapters.outbound.ComplianceReferenceProjection
-import br.com.locasport.identity.adapters.outbound.CredentialProjection
+import br.com.locasport.identity.adapters.outbound.CompositeProjectionStore
+import br.com.locasport.identity.adapters.outbound.IdentityAssuranceProjection
+import br.com.locasport.identity.adapters.outbound.PartnerProjection
+import br.com.locasport.identity.adapters.outbound.PersonProjection
 import br.com.locasport.identity.adapters.outbound.PostgresCommandDeduplication
 import br.com.locasport.identity.adapters.outbound.R2dbcEventStore
 import br.com.locasport.identity.adapters.outbound.S3RetentionArchive
 import br.com.locasport.identity.adapters.outbound.SqsFifoEventPublisher
-import br.com.locasport.identity.application.ActivateCredentialHandler
-import br.com.locasport.identity.application.AssignRoleHandler
-import br.com.locasport.identity.application.CompleteStepUpChallengeHandler
-import br.com.locasport.identity.application.RaiseAssuranceLevelHandler
-import br.com.locasport.identity.application.RegisterAccountHandler
-import br.com.locasport.identity.application.RegisterCredentialHandler
-import br.com.locasport.identity.application.ReinstateAccountHandler
-import br.com.locasport.identity.application.RevokeCredentialHandler
-import br.com.locasport.identity.application.RevokeRoleHandler
-import br.com.locasport.identity.application.StepUpAssurancePolicy
-import br.com.locasport.identity.application.SubmitIdentityClaimHandler
-import br.com.locasport.identity.application.SuspendAccountHandler
+import br.com.locasport.identity.application.ActivatePersonAccountHandler
+import br.com.locasport.identity.application.DeactivatePartnerHandler
+import br.com.locasport.identity.application.DeactivatePersonHandler
+import br.com.locasport.identity.application.DefaultLevelUpgradePolicy
+import br.com.locasport.identity.application.DisclosePartnerPurposeHandler
+import br.com.locasport.identity.application.DisclosePersonPurposeHandler
+import br.com.locasport.identity.application.GrantPartnerRoleHandler
+import br.com.locasport.identity.application.GrantPersonRoleHandler
+import br.com.locasport.identity.application.LevelUpgradePolicy
+import br.com.locasport.identity.application.RaisePartnerAssuranceLevelHandler
+import br.com.locasport.identity.application.RaisePersonAssuranceLevelHandler
+import br.com.locasport.identity.application.ReactivatePartnerHandler
+import br.com.locasport.identity.application.ReactivatePersonHandler
+import br.com.locasport.identity.application.RegisterPartnerHandler
+import br.com.locasport.identity.application.RegisterPersonHandler
+import br.com.locasport.identity.application.RejectPartnerHandler
+import br.com.locasport.identity.application.RevokePartnerRoleHandler
+import br.com.locasport.identity.application.RevokePersonRoleHandler
+import br.com.locasport.identity.application.SubmitPartnerForReviewHandler
+import br.com.locasport.identity.application.SuspendPartnerHandler
+import br.com.locasport.identity.application.SuspendPersonHandler
+import br.com.locasport.identity.application.VerifyPartnerIdentityHandler
 import io.r2dbc.spi.ConnectionFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -71,22 +83,63 @@ val identityBeans =
         }
         bean { SqsFifoEventPublisher(ref(), ref<IdentityProperties>().localstack) }
         bean { S3RetentionArchive(ref(), ref<IdentityProperties>().retention) }
-        bean { AccountProjection(ref()) }
-        bean { CredentialProjection(ref()) }
-        bean { RegisterAccountHandler(ref(), ref(), ref<AccountProjection>(), ref()) }
-        bean { SubmitIdentityClaimHandler(ref(), ref(), ref<AccountProjection>(), ref()) }
-        bean { RaiseAssuranceLevelHandler(ref(), ref(), ref<AccountProjection>(), ref()) }
-        bean { AssignRoleHandler(ref(), ref(), ref<AccountProjection>(), ref()) }
-        bean { SuspendAccountHandler(ref(), ref(), ref<AccountProjection>(), ref()) }
-        bean { RevokeRoleHandler(ref(), ref(), ref<AccountProjection>(), ref()) }
-        bean { ReinstateAccountHandler(ref(), ref(), ref<AccountProjection>(), ref()) }
-        bean { RegisterCredentialHandler(ref(), ref(), ref<CredentialProjection>(), ref()) }
-        bean { ActivateCredentialHandler(ref(), ref(), ref<CredentialProjection>(), ref()) }
-        bean { CompleteStepUpChallengeHandler(ref(), ref(), ref<CredentialProjection>(), ref()) }
-        bean { RevokeCredentialHandler(ref(), ref(), ref<CredentialProjection>(), ref()) }
-        bean { StepUpAssurancePolicy(ref()) }
-        bean { AccountInboundAdapter(ref(), ref(), ref(), ref(), ref(), ref(), ref()) }
-        bean { CredentialInboundAdapter(ref(), ref(), ref(), ref()) }
+        bean { PersonProjection(ref()) }
+        bean { PartnerProjection(ref()) }
+        bean { IdentityAssuranceProjection(ref()) }
+        bean {
+            CompositeProjectionStore(
+                listOf(ref<PersonProjection>(), ref<PartnerProjection>(), ref<IdentityAssuranceProjection>()),
+            )
+        }
+        bean<LevelUpgradePolicy> { DefaultLevelUpgradePolicy() }
+        bean { RegisterPersonHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { DisclosePersonPurposeHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { RaisePersonAssuranceLevelHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref(), ref()) }
+        bean { ActivatePersonAccountHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { GrantPersonRoleHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { RevokePersonRoleHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { SuspendPersonHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { ReactivatePersonHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { DeactivatePersonHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { RegisterPartnerHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { DisclosePartnerPurposeHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { SubmitPartnerForReviewHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { VerifyPartnerIdentityHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { RejectPartnerHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { SuspendPartnerHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { ReactivatePartnerHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { DeactivatePartnerHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { GrantPartnerRoleHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { RevokePartnerRoleHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref()) }
+        bean { RaisePartnerAssuranceLevelHandler(ref(), ref(), ref<CompositeProjectionStore>(), ref(), ref()) }
+        bean {
+            PersonInboundAdapter(
+                ref(),
+                ref(),
+                ref(),
+                ref(),
+                ref(),
+                ref(),
+                ref(),
+                ref(),
+                ref(),
+            )
+        }
+        bean {
+            PartnerInboundAdapter(
+                ref(),
+                ref(),
+                ref(),
+                ref(),
+                ref(),
+                ref(),
+                ref(),
+                ref(),
+                ref(),
+                ref(),
+                ref(),
+            )
+        }
         bean { identityRoutes(ref(), ref()) }
         bean { ComplianceReferenceProjection(ref()) }
         bean { ComplianceAclConsumer(ref(), ref<IdentityProperties>().localstack, ref()) }

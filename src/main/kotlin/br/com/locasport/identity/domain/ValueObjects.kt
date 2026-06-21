@@ -1,52 +1,41 @@
 package br.com.locasport.identity.domain
 
-enum class SubjectType {
-    PERSON,
-    PARTNER,
+enum class AssuranceLevel {
+    NONE,
+    BASIC,
+    VERIFIED,
 }
 
 enum class Role {
     PRACTITIONER,
-    PARTNER_ARENA,
-    PARTNER_INSTRUCTOR,
+    ARENA_OPERATOR,
+    INSTRUCTOR,
     ADMIN,
 }
 
-enum class AssuranceLevel {
-    NONE,
-    LOW,
-    SUBSTANTIAL,
-    HIGH,
+enum class LegalBasis {
+    CONTRACT_EXECUTION,
+    FRAUD_PREVENTION,
+    LEGAL_OBLIGATION,
 }
 
-enum class FactorType {
-    PASSWORD,
-    OTP,
-    DEVICE,
+enum class PersonStatus {
+    REGISTERED,
+    ACTIVE,
+    SUSPENDED,
+    DEACTIVATED,
 }
 
-enum class ClaimType {
-    EMAIL,
-    PHONE,
-    GOVERNMENT_ID,
-    SELFIE,
-    ADDRESS,
+enum class PartnerStatus {
+    REGISTERED,
+    UNDER_REVIEW,
+    ACTIVE,
+    REJECTED,
+    SUSPENDED,
+    DEACTIVATED,
 }
 
-@JvmInline
-value class PurposeReference(
-    val value: String,
-) {
-    companion object {
-        fun none(): PurposeReference = PurposeReference("")
-    }
-}
-
-@JvmInline
-value class LegalBasisReference(
-    val value: String,
-) {
-    companion object {
-        fun none(): LegalBasisReference = LegalBasisReference("")
-    }
+enum class PartnerType {
+    ARENA,
+    INSTRUCTOR,
 }

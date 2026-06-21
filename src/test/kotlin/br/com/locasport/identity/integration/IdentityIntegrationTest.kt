@@ -3,50 +3,60 @@ package br.com.locasport.identity.integration
 import br.com.locasport.identity.adapters.config.EventStoreProperties
 import br.com.locasport.identity.adapters.config.LocalstackProperties
 import br.com.locasport.identity.adapters.inbound.ComplianceAclConsumer
-import br.com.locasport.identity.adapters.outbound.AccountProjection
 import br.com.locasport.identity.adapters.outbound.AvroEventCodec
 import br.com.locasport.identity.adapters.outbound.ComplianceReferenceProjection
-import br.com.locasport.identity.adapters.outbound.CredentialProjection
+import br.com.locasport.identity.adapters.outbound.CompositeProjectionStore
+import br.com.locasport.identity.adapters.outbound.IdentityAssuranceProjection
+import br.com.locasport.identity.adapters.outbound.PartnerProjection
+import br.com.locasport.identity.adapters.outbound.PersonProjection
 import br.com.locasport.identity.adapters.outbound.PostgresCommandDeduplication
 import br.com.locasport.identity.adapters.outbound.R2dbcEventStore
 import br.com.locasport.identity.adapters.outbound.SqsFifoEventPublisher
-import br.com.locasport.identity.application.ActivateCredentialHandler
-import br.com.locasport.identity.application.AssignRoleHandler
+import br.com.locasport.identity.application.ActivatePersonAccountHandler
 import br.com.locasport.identity.application.CommandOutcome
-import br.com.locasport.identity.application.RaiseAssuranceLevelHandler
-import br.com.locasport.identity.application.RegisterAccountHandler
-import br.com.locasport.identity.application.RegisterCredentialHandler
-import br.com.locasport.identity.application.ReinstateAccountHandler
-import br.com.locasport.identity.application.RevokeRoleHandler
-import br.com.locasport.identity.application.StepUpAssurancePolicy
-import br.com.locasport.identity.application.SuspendAccountHandler
-import br.com.locasport.identity.domain.AccountId
-import br.com.locasport.identity.domain.ActivateCredential
-import br.com.locasport.identity.domain.AssignRole
+import br.com.locasport.identity.application.DefaultLevelUpgradePolicy
+import br.com.locasport.identity.application.DisclosePartnerPurposeHandler
+import br.com.locasport.identity.application.DisclosePersonPurposeHandler
+import br.com.locasport.identity.application.GrantPersonRoleHandler
+import br.com.locasport.identity.application.LevelUpgradePolicy
+import br.com.locasport.identity.application.RaisePartnerAssuranceLevelHandler
+import br.com.locasport.identity.application.RaisePersonAssuranceLevelHandler
+import br.com.locasport.identity.application.ReactivatePersonHandler
+import br.com.locasport.identity.application.RegisterPartnerHandler
+import br.com.locasport.identity.application.RegisterPersonHandler
+import br.com.locasport.identity.application.RevokePersonRoleHandler
+import br.com.locasport.identity.application.SubmitPartnerForReviewHandler
+import br.com.locasport.identity.application.SuspendPersonHandler
+import br.com.locasport.identity.application.VerifyPartnerIdentityHandler
+import br.com.locasport.identity.domain.AccountActivationDenied
+import br.com.locasport.identity.domain.ActivateAccount
 import br.com.locasport.identity.domain.AssuranceLevel
-import br.com.locasport.identity.domain.AssuranceLevelRaised
 import br.com.locasport.identity.domain.CommandId
-import br.com.locasport.identity.domain.CredentialId
-import br.com.locasport.identity.domain.EventId
-import br.com.locasport.identity.domain.FactorType
-import br.com.locasport.identity.domain.InvalidStateTransition
-import br.com.locasport.identity.domain.PurposeReference
+import br.com.locasport.identity.domain.DisclosePartnerPurpose
+import br.com.locasport.identity.domain.DisclosePurpose
+import br.com.locasport.identity.domain.ExcessiveAssuranceDenied
+import br.com.locasport.identity.domain.GrantRole
+import br.com.locasport.identity.domain.InvalidAssuranceDowngrade
+import br.com.locasport.identity.domain.LegalBasis
+import br.com.locasport.identity.domain.PartnerId
+import br.com.locasport.identity.domain.PartnerType
+import br.com.locasport.identity.domain.PersonId
+import br.com.locasport.identity.domain.PurposeNotDisclosed
 import br.com.locasport.identity.domain.RaiseAssuranceLevel
-import br.com.locasport.identity.domain.RegisterAccount
-import br.com.locasport.identity.domain.RegisterCredential
-import br.com.locasport.identity.domain.ReinstateAccount
+import br.com.locasport.identity.domain.ReactivatePerson
+import br.com.locasport.identity.domain.RegisterPartner
+import br.com.locasport.identity.domain.RegisterPerson
 import br.com.locasport.identity.domain.RevokeRole
 import br.com.locasport.identity.domain.Role
-import br.com.locasport.identity.domain.StepUpChallengeCompleted
 import br.com.locasport.identity.domain.StreamId
-import br.com.locasport.identity.domain.SubjectType
-import br.com.locasport.identity.domain.SuspendAccount
+import br.com.locasport.identity.domain.SubmitPartnerForReview
+import br.com.locasport.identity.domain.SuspendPerson
+import br.com.locasport.identity.domain.VerifyPartnerIdentity
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 import io.r2dbc.spi.ConnectionFactories
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -95,19 +105,49 @@ class IdentityIntegrationTest :
         val eventStore = R2dbcEventStore(client, codec, EventStoreProperties())
         val deduplication = PostgresCommandDeduplication(client)
         val publisher = SqsFifoEventPublisher(sqs, properties)
-        val accountProjection = AccountProjection(client)
-        val credentialProjection = CredentialProjection(client)
+        val personProjection = PersonProjection(client)
+        val partnerProjection = PartnerProjection(client)
+        val assuranceProjection = IdentityAssuranceProjection(client)
+        val compositeProjection =
+            CompositeProjectionStore(listOf(personProjection, partnerProjection, assuranceProjection))
         val referenceProjection = ComplianceReferenceProjection(client)
 
-        val register = RegisterAccountHandler(deduplication, eventStore, accountProjection, publisher)
-        val raiseAssurance = RaiseAssuranceLevelHandler(deduplication, eventStore, accountProjection, publisher)
-        val assignRole = AssignRoleHandler(deduplication, eventStore, accountProjection, publisher)
-        val revokeRole = RevokeRoleHandler(deduplication, eventStore, accountProjection, publisher)
-        val suspendAccount = SuspendAccountHandler(deduplication, eventStore, accountProjection, publisher)
-        val reinstate = ReinstateAccountHandler(deduplication, eventStore, accountProjection, publisher)
-        val registerCredential = RegisterCredentialHandler(deduplication, eventStore, credentialProjection, publisher)
-        val activateCredential = ActivateCredentialHandler(deduplication, eventStore, credentialProjection, publisher)
-        val policy = StepUpAssurancePolicy(raiseAssurance)
+        val registerPerson = RegisterPersonHandler(deduplication, eventStore, compositeProjection, publisher)
+        val disclosePurpose = DisclosePersonPurposeHandler(deduplication, eventStore, compositeProjection, publisher)
+        val restrictivePolicy = DefaultLevelUpgradePolicy()
+        val permissivePolicy =
+            object : LevelUpgradePolicy {
+                override suspend fun mayUpgradeTo(
+                    subjectId: java.util.UUID,
+                    target: AssuranceLevel,
+                ) = true
+            }
+        val raiseAssurance =
+            RaisePersonAssuranceLevelHandler(
+                deduplication,
+                eventStore,
+                compositeProjection,
+                publisher,
+                restrictivePolicy,
+            )
+        val raisePartnerAssurance =
+            RaisePartnerAssuranceLevelHandler(
+                deduplication,
+                eventStore,
+                compositeProjection,
+                publisher,
+                permissivePolicy,
+            )
+        val activateAccount = ActivatePersonAccountHandler(deduplication, eventStore, compositeProjection, publisher)
+        val grantRole = GrantPersonRoleHandler(deduplication, eventStore, compositeProjection, publisher)
+        val revokeRole = RevokePersonRoleHandler(deduplication, eventStore, compositeProjection, publisher)
+        val suspendPerson = SuspendPersonHandler(deduplication, eventStore, compositeProjection, publisher)
+        val reactivatePerson = ReactivatePersonHandler(deduplication, eventStore, compositeProjection, publisher)
+        val disclosePartnerPurpose =
+            DisclosePartnerPurposeHandler(deduplication, eventStore, compositeProjection, publisher)
+        val registerPartner = RegisterPartnerHandler(deduplication, eventStore, compositeProjection, publisher)
+        val submitReview = SubmitPartnerForReviewHandler(deduplication, eventStore, compositeProjection, publisher)
+        val verifyIdentity = VerifyPartnerIdentityHandler(deduplication, eventStore, compositeProjection, publisher)
         val aclConsumer = ComplianceAclConsumer(sqs, properties, referenceProjection)
 
         afterSpec {
@@ -116,75 +156,179 @@ class IdentityIntegrationTest :
         }
 
         test("descarta comando duplicado e persiste apenas um evento sob carga concorrente") {
-            val accountId = AccountId.random()
-            val command =
-                RegisterAccount(CommandId(UUID.randomUUID()), accountId, SubjectType.PERSON, PurposeReference("p"))
+            val personId = PersonId.random()
+            val command = RegisterPerson(CommandId(UUID.randomUUID()), personId, LegalBasis.CONTRACT_EXECUTION)
 
             val outcomes =
                 coroutineScope {
-                    (1..50).map { async(Dispatchers.IO) { register.handle(command) } }.awaitAll()
+                    (1..50).map { async(Dispatchers.IO) { registerPerson.handle(command) } }.awaitAll()
                 }
 
             outcomes.count { it is CommandOutcome.Applied } shouldBe 1
-            countEvents(client, accountId.value) shouldBe 1L
+            countEvents(client, personId.value) shouldBe 1L
         }
 
-        test("preserva ordem FIFO dos eventos do stream na SQS sob carga") {
-            val accountId = AccountId.random()
-            val purpose = PurposeReference("p")
-            register.handle(RegisterAccount(CommandId(UUID.randomUUID()), accountId, SubjectType.PERSON, purpose))
+        test("preserva ordem FIFO dos eventos do stream Person na SQS") {
+            val personId = PersonId.random()
+            registerPerson.handle(RegisterPerson(CommandId(UUID.randomUUID()), personId, LegalBasis.CONTRACT_EXECUTION))
+            disclosePurpose.handle(DisclosePurpose(CommandId(UUID.randomUUID()), personId, "treino"))
             raiseAssurance.handle(
-                RaiseAssuranceLevel(CommandId(UUID.randomUUID()), accountId, AssuranceLevel.SUBSTANTIAL, purpose),
+                RaiseAssuranceLevel(CommandId(UUID.randomUUID()), personId.value, AssuranceLevel.BASIC),
             )
-            assignRole.handle(AssignRole(CommandId(UUID.randomUUID()), accountId, Role.PRACTITIONER))
 
-            eventStore.load(StreamId.of(accountId)).map { it.event.type } shouldBe
-                listOf("AccountRegistered", "AssuranceLevelRaised", "RoleAssigned")
+            eventStore.load(StreamId.of(personId)).map { it.event.type } shouldBe
+                listOf("PersonRegistered", "PurposeDisclosed", "AssuranceLevelRaised")
 
-            drainTypesForStream(sqs, eventsQueueUrl, accountId.value.toString(), mapper, expected = 3) shouldBe
-                listOf("AccountRegistered", "AssuranceLevelRaised", "RoleAssigned")
+            drainTypesForStream(sqs, eventsQueueUrl, personId.value.toString(), mapper, expected = 3) shouldBe
+                listOf("PersonRegistered", "PurposeDisclosed", "AssuranceLevelRaised")
         }
 
-        test("rejeita transicao invalida end-to-end (REGISTERED->VERIFIED)") {
-            val accountId = AccountId.random()
-            val purpose = PurposeReference("p")
-            register.handle(RegisterAccount(CommandId(UUID.randomUUID()), accountId, SubjectType.PERSON, purpose))
+        test("rejeita ativacao sem assurance BASIC (REGISTERED -> ACTIVATE)") {
+            val personId = PersonId.random()
+            registerPerson.handle(RegisterPerson(CommandId(UUID.randomUUID()), personId, LegalBasis.CONTRACT_EXECUTION))
 
-            shouldThrow<InvalidStateTransition> {
-                raiseAssurance.handle(RaiseAssuranceLevel(CommandId(UUID.randomUUID()), accountId, AssuranceLevel.HIGH, purpose))
+            shouldThrow<AccountActivationDenied> {
+                activateAccount.handle(ActivateAccount(CommandId(UUID.randomUUID()), personId))
             }
         }
 
-        test("idempotencia cross-stream do StepUpAssurancePolicy") {
-            val accountId = AccountId.random()
-            val credentialId = CredentialId.random()
-            val purpose = PurposeReference("p")
-            register.handle(RegisterAccount(CommandId(UUID.randomUUID()), accountId, SubjectType.PERSON, purpose))
+        test("rejeita downgrade de assurance") {
+            val personId = PersonId.random()
+            registerPerson.handle(RegisterPerson(CommandId(UUID.randomUUID()), personId, LegalBasis.CONTRACT_EXECUTION))
+            disclosePurpose.handle(DisclosePurpose(CommandId(UUID.randomUUID()), personId, "treino"))
             raiseAssurance.handle(
-                RaiseAssuranceLevel(CommandId(UUID.randomUUID()), accountId, AssuranceLevel.SUBSTANTIAL, purpose),
+                RaiseAssuranceLevel(CommandId(UUID.randomUUID()), personId.value, AssuranceLevel.BASIC),
             )
-            registerCredential.handle(
-                RegisterCredential(CommandId(UUID.randomUUID()), credentialId, accountId, FactorType.PASSWORD),
-            )
-            activateCredential.handle(ActivateCredential(CommandId(UUID.randomUUID()), credentialId))
 
-            val stepUp =
-                StepUpChallengeCompleted(
-                    credentialId,
-                    accountId,
-                    AssuranceLevel.HIGH,
-                    purpose,
-                    eventId = EventId(UUID.randomUUID()),
+            shouldThrow<InvalidAssuranceDowngrade> {
+                raiseAssurance.handle(
+                    RaiseAssuranceLevel(CommandId(UUID.randomUUID()), personId.value, AssuranceLevel.NONE),
                 )
-            val first = policy.on(stepUp)
-            val second = policy.on(stepUp)
+            }
+        }
 
-            first.shouldBeInstanceOf<CommandOutcome.Applied>()
-            second shouldBe CommandOutcome.Discarded
+        test("rejeita coleta excessiva VERIFIED sem gatilho de risco") {
+            val personId = PersonId.random()
+            registerPerson.handle(RegisterPerson(CommandId(UUID.randomUUID()), personId, LegalBasis.CONTRACT_EXECUTION))
+            disclosePurpose.handle(DisclosePurpose(CommandId(UUID.randomUUID()), personId, "treino"))
+            raiseAssurance.handle(
+                RaiseAssuranceLevel(CommandId(UUID.randomUUID()), personId.value, AssuranceLevel.BASIC),
+            )
 
-            eventStore.load(StreamId.of(accountId)).count {
-                it.event is AssuranceLevelRaised && (it.event as AssuranceLevelRaised).to == AssuranceLevel.HIGH
-            } shouldBe 1
+            shouldThrow<ExcessiveAssuranceDenied> {
+                raiseAssurance.handle(
+                    RaiseAssuranceLevel(CommandId(UUID.randomUUID()), personId.value, AssuranceLevel.VERIFIED),
+                )
+            }
+        }
+
+        test("rejeita RaiseAssurance sem proposito divulgado") {
+            val personId = PersonId.random()
+            registerPerson.handle(RegisterPerson(CommandId(UUID.randomUUID()), personId, LegalBasis.CONTRACT_EXECUTION))
+
+            shouldThrow<PurposeNotDisclosed> {
+                raiseAssurance.handle(
+                    RaiseAssuranceLevel(CommandId(UUID.randomUUID()), personId.value, AssuranceLevel.BASIC),
+                )
+            }
+        }
+
+        test("fluxo completo Person: Register -> Disclose -> Raise -> Activate") {
+            val personId = PersonId.random()
+            registerPerson.handle(RegisterPerson(CommandId(UUID.randomUUID()), personId, LegalBasis.CONTRACT_EXECUTION))
+            disclosePurpose.handle(DisclosePurpose(CommandId(UUID.randomUUID()), personId, "treino"))
+            raiseAssurance.handle(
+                RaiseAssuranceLevel(CommandId(UUID.randomUUID()), personId.value, AssuranceLevel.BASIC),
+            )
+            activateAccount.handle(ActivateAccount(CommandId(UUID.randomUUID()), personId))
+
+            eventStore.load(StreamId.of(personId)).map { it.event.type } shouldBe
+                listOf("PersonRegistered", "PurposeDisclosed", "AssuranceLevelRaised", "PersonActivated")
+
+            loadPersonStatus(client, personId.value) shouldBe "ACTIVE"
+        }
+
+        test("fluxo completo Partner: Register -> Review -> Raise -> VerifyIdentity") {
+            val partnerId = PartnerId.random()
+            val legalName = "Arena Teste Ltda"
+            val taxId = "11222333000144"
+            val verifiedAt = Instant.now()
+
+            registerPartner.handle(
+                RegisterPartner(
+                    CommandId(UUID.randomUUID()),
+                    partnerId,
+                    PartnerType.ARENA,
+                    legalName,
+                    taxId,
+                    LegalBasis.CONTRACT_EXECUTION,
+                ),
+            )
+            submitReview.handle(SubmitPartnerForReview(CommandId(UUID.randomUUID()), partnerId))
+
+            eventStore.load(StreamId.of(partnerId)).map { it.event.type } shouldBe
+                listOf("PartnerRegistered", "PartnerReviewSubmitted")
+
+            disclosePartnerPurpose.handle(
+                DisclosePartnerPurpose(CommandId(UUID.randomUUID()), partnerId, "arena"),
+            )
+            raisePartnerAssurance.handle(
+                RaiseAssuranceLevel(CommandId(UUID.randomUUID()), partnerId.value, AssuranceLevel.VERIFIED),
+            )
+            verifyIdentity.handle(VerifyPartnerIdentity(CommandId(UUID.randomUUID()), partnerId, verifiedAt))
+
+            eventStore.load(StreamId.of(partnerId)).map { it.event.type } shouldBe
+                listOf("PartnerRegistered", "PartnerReviewSubmitted", "PurposeDisclosed", "AssuranceLevelRaised", "PartnerIdentityVerified")
+
+            loadPartnerStatus(client, partnerId.value) shouldBe "ACTIVE"
+        }
+
+        test("revoga papel atribuido e remove da projecao") {
+            val personId = PersonId.random()
+            registerPerson.handle(RegisterPerson(CommandId(UUID.randomUUID()), personId, LegalBasis.CONTRACT_EXECUTION))
+            disclosePurpose.handle(DisclosePurpose(CommandId(UUID.randomUUID()), personId, "treino"))
+            raiseAssurance.handle(
+                RaiseAssuranceLevel(CommandId(UUID.randomUUID()), personId.value, AssuranceLevel.BASIC),
+            )
+            activateAccount.handle(ActivateAccount(CommandId(UUID.randomUUID()), personId))
+            grantRole.handle(GrantRole(CommandId(UUID.randomUUID()), personId, Role.PRACTITIONER))
+            revokeRole.handle(RevokeRole(CommandId(UUID.randomUUID()), personId, Role.PRACTITIONER))
+
+            eventStore.load(StreamId.of(personId)).map { it.event.type } shouldBe
+                listOf(
+                    "PersonRegistered",
+                    "PurposeDisclosed",
+                    "AssuranceLevelRaised",
+                    "PersonActivated",
+                    "RoleGranted",
+                    "RoleRevoked",
+                )
+
+            loadPersonRoles(client, personId.value) shouldBe ""
+        }
+
+        test("suspende e reativa pessoa fim-a-fim") {
+            val personId = PersonId.random()
+            registerPerson.handle(RegisterPerson(CommandId(UUID.randomUUID()), personId, LegalBasis.CONTRACT_EXECUTION))
+            disclosePurpose.handle(DisclosePurpose(CommandId(UUID.randomUUID()), personId, "treino"))
+            raiseAssurance.handle(
+                RaiseAssuranceLevel(CommandId(UUID.randomUUID()), personId.value, AssuranceLevel.BASIC),
+            )
+            activateAccount.handle(ActivateAccount(CommandId(UUID.randomUUID()), personId))
+            suspendPerson.handle(SuspendPerson(CommandId(UUID.randomUUID()), personId, "abuso"))
+            reactivatePerson.handle(ReactivatePerson(CommandId(UUID.randomUUID()), personId))
+
+            eventStore.load(StreamId.of(personId)).map { it.event.type } shouldBe
+                listOf(
+                    "PersonRegistered",
+                    "PurposeDisclosed",
+                    "AssuranceLevelRaised",
+                    "PersonActivated",
+                    "PersonSuspended",
+                    "PersonReactivated",
+                )
+
+            loadPersonStatus(client, personId.value) shouldBe "ACTIVE"
         }
 
         test("consome evento do compliance via ACL e atualiza projecao de referencia") {
@@ -221,32 +365,6 @@ class IdentityIntegrationTest :
             reference.sourceType shouldBe "CONSENT"
             reference.purposeReference shouldBe "consent:$consentId"
         }
-
-        test("revoga papel atribuido e remove da projecao") {
-            val accountId = AccountId.random()
-            val purpose = PurposeReference("p")
-            register.handle(RegisterAccount(CommandId(UUID.randomUUID()), accountId, SubjectType.PERSON, purpose))
-            assignRole.handle(AssignRole(CommandId(UUID.randomUUID()), accountId, Role.PRACTITIONER))
-            revokeRole.handle(RevokeRole(CommandId(UUID.randomUUID()), accountId, Role.PRACTITIONER))
-
-            eventStore.load(StreamId.of(accountId)).map { it.event.type } shouldBe
-                listOf("AccountRegistered", "RoleAssigned", "RoleRevoked")
-
-            loadAccountRoles(client, accountId.value) shouldBe ""
-        }
-
-        test("reinstala conta suspensa end-to-end") {
-            val accountId = AccountId.random()
-            val purpose = PurposeReference("p")
-            register.handle(RegisterAccount(CommandId(UUID.randomUUID()), accountId, SubjectType.PERSON, purpose))
-            suspendAccount.handle(SuspendAccount(CommandId(UUID.randomUUID()), accountId, "motivo"))
-            reinstate.handle(ReinstateAccount(CommandId(UUID.randomUUID()), accountId))
-
-            eventStore.load(StreamId.of(accountId)).map { it.event.type } shouldBe
-                listOf("AccountRegistered", "AccountSuspended", "AccountReinstated")
-
-            loadAccountStatus(client, accountId.value) shouldBe "REGISTERED"
-        }
     })
 
 private data class ReferenceRow(
@@ -280,23 +398,33 @@ private suspend fun loadReference(
             )
         }.awaitOneOrNull()
 
-private suspend fun loadAccountRoles(
+private suspend fun loadPersonRoles(
     client: DatabaseClient,
-    accountId: UUID,
+    personId: UUID,
 ): String? =
     client
-        .sql("SELECT roles FROM account_view WHERE account_id = :id")
-        .bind("id", accountId)
+        .sql("SELECT roles FROM person_view WHERE person_id = :id")
+        .bind("id", personId)
         .map { row -> row.get("roles", String::class.java) ?: "" }
         .awaitOneOrNull()
 
-private suspend fun loadAccountStatus(
+private suspend fun loadPersonStatus(
     client: DatabaseClient,
-    accountId: UUID,
+    personId: UUID,
 ): String? =
     client
-        .sql("SELECT status FROM account_view WHERE account_id = :id")
-        .bind("id", accountId)
+        .sql("SELECT status FROM person_view WHERE person_id = :id")
+        .bind("id", personId)
+        .map { row -> row.get("status", String::class.java)!! }
+        .awaitOneOrNull()
+
+private suspend fun loadPartnerStatus(
+    client: DatabaseClient,
+    partnerId: UUID,
+): String? =
+    client
+        .sql("SELECT status FROM partner_view WHERE partner_id = :id")
+        .bind("id", partnerId)
         .map { row -> row.get("status", String::class.java)!! }
         .awaitOneOrNull()
 

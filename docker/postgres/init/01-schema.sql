@@ -16,22 +16,42 @@ CREATE TABLE IF NOT EXISTS processed_command (
     processed_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS account_view (
-    account_id   UUID        NOT NULL PRIMARY KEY,
-    subject_type TEXT        NOT NULL,
-    status       TEXT        NOT NULL,
-    assurance    TEXT        NOT NULL,
-    roles        TEXT        NOT NULL,
-    updated_at   TIMESTAMPTZ NOT NULL
+CREATE TABLE IF NOT EXISTS person_view (
+    person_id           UUID        NOT NULL PRIMARY KEY,
+    status              TEXT        NOT NULL,
+    assurance           TEXT        NOT NULL,
+    roles               TEXT        NOT NULL,
+    legal_basis         TEXT        NOT NULL,
+    purpose_disclosed   BOOLEAN     NOT NULL DEFAULT FALSE,
+    updated_at          TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS credential_view (
-    credential_id UUID        NOT NULL PRIMARY KEY,
-    account_id    UUID        NOT NULL,
-    status        TEXT        NOT NULL,
-    factor_type   TEXT        NOT NULL,
-    assurance     TEXT        NOT NULL,
-    updated_at    TIMESTAMPTZ NOT NULL
+CREATE TABLE IF NOT EXISTS partner_view (
+    partner_id          UUID        NOT NULL PRIMARY KEY,
+    partner_type        TEXT        NOT NULL,
+    legal_name          TEXT        NOT NULL,
+    tax_id              TEXT        NOT NULL,
+    status              TEXT        NOT NULL,
+    assurance           TEXT        NOT NULL,
+    roles               TEXT        NOT NULL,
+    legal_basis         TEXT        NOT NULL,
+    purpose_disclosed   BOOLEAN     NOT NULL DEFAULT FALSE,
+    updated_at          TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS identity_assurance_view (
+    subject_id          UUID        NOT NULL PRIMARY KEY,
+    subject_type        TEXT        NOT NULL,
+    assurance           TEXT        NOT NULL,
+    purpose_disclosed   BOOLEAN     NOT NULL DEFAULT FALSE,
+    updated_at          TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS archived_event (
+    stream_id       UUID        NOT NULL,
+    sequence_number BIGINT      NOT NULL,
+    archived_at     TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (stream_id, sequence_number)
 );
 
 CREATE TABLE IF NOT EXISTS compliance_reference_view (

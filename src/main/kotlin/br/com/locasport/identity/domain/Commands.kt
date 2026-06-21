@@ -1,72 +1,114 @@
 package br.com.locasport.identity.domain
 
-data class RegisterAccount(
+import java.time.Instant
+
+data class RegisterPerson(
     val commandId: CommandId,
-    val accountId: AccountId,
-    val subjectType: SubjectType,
-    val purposeReference: PurposeReference,
+    val personId: PersonId,
+    val legalBasis: LegalBasis,
 )
 
-data class SubmitIdentityClaim(
+data class ActivateAccount(
     val commandId: CommandId,
-    val accountId: AccountId,
-    val claimType: ClaimType,
-    val purposeReference: PurposeReference,
-    val legalBasisReference: LegalBasisReference,
+    val personId: PersonId,
+)
+
+data class SuspendPerson(
+    val commandId: CommandId,
+    val personId: PersonId,
+    val reason: String,
+)
+
+data class ReactivatePerson(
+    val commandId: CommandId,
+    val personId: PersonId,
+)
+
+data class DeactivatePerson(
+    val commandId: CommandId,
+    val personId: PersonId,
+)
+
+data class DisclosePurpose(
+    val commandId: CommandId,
+    val personId: PersonId,
+    val purpose: String,
 )
 
 data class RaiseAssuranceLevel(
     val commandId: CommandId,
-    val accountId: AccountId,
+    val subjectId: java.util.UUID,
     val target: AssuranceLevel,
-    val purposeReference: PurposeReference,
 )
 
-data class AssignRole(
+data class GrantRole(
     val commandId: CommandId,
-    val accountId: AccountId,
+    val personId: PersonId,
     val role: Role,
 )
 
 data class RevokeRole(
     val commandId: CommandId,
-    val accountId: AccountId,
+    val personId: PersonId,
     val role: Role,
 )
 
-data class SuspendAccount(
+data class RegisterPartner(
     val commandId: CommandId,
-    val accountId: AccountId,
+    val partnerId: PartnerId,
+    val partnerType: PartnerType,
+    val legalName: String,
+    val taxId: String,
+    val legalBasis: LegalBasis,
+)
+
+data class SubmitPartnerForReview(
+    val commandId: CommandId,
+    val partnerId: PartnerId,
+)
+
+data class VerifyPartnerIdentity(
+    val commandId: CommandId,
+    val partnerId: PartnerId,
+    val verifiedAt: Instant,
+)
+
+data class RejectPartner(
+    val commandId: CommandId,
+    val partnerId: PartnerId,
     val reason: String,
 )
 
-data class ReinstateAccount(
+data class SuspendPartner(
     val commandId: CommandId,
-    val accountId: AccountId,
-)
-
-data class RegisterCredential(
-    val commandId: CommandId,
-    val credentialId: CredentialId,
-    val accountId: AccountId,
-    val factorType: FactorType,
-)
-
-data class ActivateCredential(
-    val commandId: CommandId,
-    val credentialId: CredentialId,
-)
-
-data class CompleteStepUpChallenge(
-    val commandId: CommandId,
-    val credentialId: CredentialId,
-    val accountId: AccountId,
-    val achievedAssurance: AssuranceLevel,
-    val purposeReference: PurposeReference,
-)
-
-data class RevokeCredential(
-    val commandId: CommandId,
-    val credentialId: CredentialId,
+    val partnerId: PartnerId,
     val reason: String,
+)
+
+data class ReactivatePartner(
+    val commandId: CommandId,
+    val partnerId: PartnerId,
+)
+
+data class DeactivatePartner(
+    val commandId: CommandId,
+    val partnerId: PartnerId,
+)
+
+data class DisclosePartnerPurpose(
+    val commandId: CommandId,
+    val partnerId: PartnerId,
+    val purpose: String,
+)
+
+data class GrantPartnerRole(
+    val commandId: CommandId,
+    val partnerId: PartnerId,
+    val role: Role,
+)
+
+data class RevokePartnerRole(
+    val commandId: CommandId,
+    val partnerId: PartnerId,
+    val role: Role,
 )

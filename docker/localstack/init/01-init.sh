@@ -30,3 +30,4 @@ awslocal sns subscribe \
   --attributes RawMessageDelivery=true
 
 awslocal s3 mb s3://identity-retention
+awslocal s3 mb s3://identity-documents

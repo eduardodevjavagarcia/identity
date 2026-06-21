@@ -1,17 +1,22 @@
 package br.com.locasport.identity.adapters.outbound
 
-import br.com.locasport.identity.domain.AccountRegistered
-import br.com.locasport.identity.domain.AccountReinstated
-import br.com.locasport.identity.domain.AccountSuspended
 import br.com.locasport.identity.domain.AssuranceLevelRaised
-import br.com.locasport.identity.domain.CredentialActivated
-import br.com.locasport.identity.domain.CredentialRegistered
-import br.com.locasport.identity.domain.CredentialRevoked
 import br.com.locasport.identity.domain.DomainEvent
-import br.com.locasport.identity.domain.IdentityClaimSubmitted
-import br.com.locasport.identity.domain.RoleAssigned
+import br.com.locasport.identity.domain.PartnerDeactivated
+import br.com.locasport.identity.domain.PartnerIdentityVerified
+import br.com.locasport.identity.domain.PartnerReactivated
+import br.com.locasport.identity.domain.PartnerRegistered
+import br.com.locasport.identity.domain.PartnerRejected
+import br.com.locasport.identity.domain.PartnerReviewSubmitted
+import br.com.locasport.identity.domain.PartnerSuspended
+import br.com.locasport.identity.domain.PersonActivated
+import br.com.locasport.identity.domain.PersonDeactivated
+import br.com.locasport.identity.domain.PersonReactivated
+import br.com.locasport.identity.domain.PersonRegistered
+import br.com.locasport.identity.domain.PersonSuspended
+import br.com.locasport.identity.domain.PurposeDisclosed
+import br.com.locasport.identity.domain.RoleGranted
 import br.com.locasport.identity.domain.RoleRevoked
-import br.com.locasport.identity.domain.StepUpChallengeCompleted
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -33,76 +38,102 @@ object JsonEventCodec {
 
     private fun body(event: DomainEvent): Map<String, Any?> =
         when (event) {
-            is AccountRegistered ->
+            is PersonRegistered ->
                 mapOf(
-                    "accountId" to event.accountId.value.toString(),
-                    "subjectType" to event.subjectType.name,
-                    "purposeReference" to event.purposeReference.value,
+                    "personId" to event.personId.value.toString(),
+                    "legalBasis" to event.legalBasis.name,
                 )
 
-            is IdentityClaimSubmitted ->
+            is PersonActivated ->
                 mapOf(
-                    "accountId" to event.accountId.value.toString(),
-                    "claimType" to event.claimType.name,
-                    "purposeReference" to event.purposeReference.value,
-                    "legalBasisReference" to event.legalBasisReference.value,
+                    "personId" to event.personId.value.toString(),
+                )
+
+            is PersonSuspended ->
+                mapOf(
+                    "personId" to event.personId.value.toString(),
+                    "reason" to event.reason,
+                )
+
+            is PersonReactivated ->
+                mapOf(
+                    "personId" to event.personId.value.toString(),
+                )
+
+            is PersonDeactivated ->
+                mapOf(
+                    "personId" to event.personId.value.toString(),
+                )
+
+            is PartnerRegistered ->
+                mapOf(
+                    "partnerId" to event.partnerId.value.toString(),
+                    "partnerType" to event.partnerType.name,
+                    "legalName" to event.legalName,
+                    "taxId" to event.taxId,
+                    "legalBasis" to event.legalBasis.name,
+                )
+
+            is PartnerReviewSubmitted ->
+                mapOf(
+                    "partnerId" to event.partnerId.value.toString(),
+                )
+
+            is PartnerIdentityVerified ->
+                mapOf(
+                    "partnerId" to event.partnerId.value.toString(),
+                    "legalName" to event.legalName,
+                    "taxId" to event.taxId,
+                    "partnerType" to event.partnerType.name,
+                    "assuranceLevel" to event.assuranceLevel.name,
+                    "verifiedAt" to event.verifiedAt.toString(),
+                )
+
+            is PartnerRejected ->
+                mapOf(
+                    "partnerId" to event.partnerId.value.toString(),
+                    "reason" to event.reason,
+                )
+
+            is PartnerSuspended ->
+                mapOf(
+                    "partnerId" to event.partnerId.value.toString(),
+                    "reason" to event.reason,
+                )
+
+            is PartnerReactivated ->
+                mapOf(
+                    "partnerId" to event.partnerId.value.toString(),
+                )
+
+            is PartnerDeactivated ->
+                mapOf(
+                    "partnerId" to event.partnerId.value.toString(),
+                )
+
+            is PurposeDisclosed ->
+                mapOf(
+                    "subjectId" to event.subjectId.toString(),
+                    "purpose" to event.purpose,
                 )
 
             is AssuranceLevelRaised ->
                 mapOf(
-                    "accountId" to event.accountId.value.toString(),
+                    "subjectId" to event.subjectId.toString(),
                     "from" to event.from.name,
                     "to" to event.to.name,
-                    "purposeReference" to event.purposeReference.value,
                 )
 
-            is RoleAssigned ->
+            is RoleGranted ->
                 mapOf(
-                    "accountId" to event.accountId.value.toString(),
+                    "subjectId" to event.subjectId.toString(),
                     "role" to event.role.name,
                 )
 
             is RoleRevoked ->
                 mapOf(
-                    "accountId" to event.accountId.value.toString(),
+                    "subjectId" to event.subjectId.toString(),
                     "role" to event.role.name,
-                )
-
-            is AccountSuspended ->
-                mapOf(
-                    "accountId" to event.accountId.value.toString(),
-                    "reason" to event.reason,
-                )
-
-            is AccountReinstated ->
-                mapOf(
-                    "accountId" to event.accountId.value.toString(),
-                )
-
-            is CredentialRegistered ->
-                mapOf(
-                    "credentialId" to event.credentialId.value.toString(),
-                    "accountId" to event.accountId.value.toString(),
-                    "factorType" to event.factorType.name,
-                )
-
-            is CredentialActivated ->
-                mapOf(
-                    "credentialId" to event.credentialId.value.toString(),
-                )
-
-            is StepUpChallengeCompleted ->
-                mapOf(
-                    "credentialId" to event.credentialId.value.toString(),
-                    "accountId" to event.accountId.value.toString(),
-                    "achievedAssurance" to event.achievedAssurance.name,
-                    "purposeReference" to event.purposeReference.value,
-                )
-
-            is CredentialRevoked ->
-                mapOf(
-                    "credentialId" to event.credentialId.value.toString(),
-                    "reason" to event.reason,
                 )
 
             else -> emptyMap()

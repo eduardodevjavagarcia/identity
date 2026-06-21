@@ -7,9 +7,11 @@ value class StreamId(
     val value: UUID,
 ) {
     companion object {
-        fun of(accountId: AccountId): StreamId = StreamId(accountId.value)
+        fun of(personId: PersonId): StreamId = StreamId(personId.value)
 
-        fun of(credentialId: CredentialId): StreamId = StreamId(credentialId.value)
+        fun of(partnerId: PartnerId): StreamId = StreamId(partnerId.value)
+
+        fun of(subjectId: UUID): StreamId = StreamId(subjectId)
     }
 }
 
@@ -28,23 +30,23 @@ value class CommandId(
 )
 
 @JvmInline
-value class AccountId(
+value class PersonId(
     val value: UUID,
 ) {
     companion object {
-        fun random(): AccountId = AccountId(UUID.randomUUID())
+        fun random(): PersonId = PersonId(UUID.randomUUID())
 
-        fun unassigned(): AccountId = AccountId(UUID(0L, 0L))
+        fun unassigned(): PersonId = PersonId(UUID(0L, 0L))
     }
 }
 
 @JvmInline
-value class CredentialId(
+value class PartnerId(
     val value: UUID,
 ) {
     companion object {
-        fun random(): CredentialId = CredentialId(UUID.randomUUID())
+        fun random(): PartnerId = PartnerId(UUID.randomUUID())
 
-        fun unassigned(): CredentialId = CredentialId(UUID(0L, 0L))
+        fun unassigned(): PartnerId = PartnerId(UUID(0L, 0L))
     }
 }
